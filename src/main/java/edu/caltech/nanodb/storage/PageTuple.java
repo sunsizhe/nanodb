@@ -8,6 +8,7 @@ import edu.caltech.nanodb.relations.ColumnType;
 import edu.caltech.nanodb.relations.Schema;
 import edu.caltech.nanodb.relations.SQLDataType;
 import edu.caltech.nanodb.relations.Tuple;
+import edu.caltech.nanodb.storage.heapfile.DataPage;
 
 
 /**
@@ -518,7 +519,19 @@ public abstract class PageTuple implements Tuple {
          * properly as well.  (Note that columns whose value is NULL will have
          * the special NULL_OFFSET constant as their offset in the tuple.)
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        try {
+            if (!isNullValue(iCol)) {
+                setNullFlag(iCol, true);
+                //deleteTupleDataRange
+                ColumnType colType = schema.getColumnInfo(iCol).getType();
+                int length = getColumnValueSize(colType, valueOffsets[iCol]);
+                deleteTupleDataRange(valueOffsets[iCol], length);
+                pageOffset += length;
+                computeValueOffsets();
+            }
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("Set column to Null failed!!!");
+        }
     }
 
 
@@ -563,7 +576,56 @@ public abstract class PageTuple implements Tuple {
          * Finally, once you have made space for the new column value, you can
          * write the value itself using the writeNonNullValue() method.
          */
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        try {
+            if (isNullValue(iCol)) {
+                setNullFlag(iCol, false);
+            }
+            int offset = valueOffsets[iCol];
+            ColumnType colType = schema.getColumnInfo(iCol).getType();
+            int oldSize;
+            if (offset == NULL_OFFSET) {
+                int preCol = iCol - 1;
+                while (preCol >= 0 && valueOffsets[preCol] == NULL_OFFSET) {
+                    preCol--;
+                }
+                if (preCol < 0) {
+                    offset = getDataStartOffset();
+                } else {
+                    offset = valueOffsets[preCol] + getColumnValueSize(schema.getColumnInfo(preCol).getType(),
+                            valueOffsets[preCol]);
+                }
+                oldSize = 0;
+            } else {
+                oldSize = getColumnValueSize(colType, offset);
+            }
+            //find old size of column and new size of column
+
+            //update obejct should have same coltype
+            // VARCHAR is special - the storage size depends on the size of the
+            // data value being stored.  In this case, read out the data length.
+            int dataLength = 0;
+            if (colType.getBaseType() == SQLDataType.VARCHAR) {
+                dataLength = TypeConverter.getStringValue(value).length();
+            }
+
+            int newSize = getStorageSize(colType, dataLength);
+            if (oldSize < newSize) {
+                insertTupleDataRange(offset, newSize - oldSize);
+                //after update data range, don't forget change the offset
+                offset -= newSize -oldSize;
+                pageOffset -= newSize -oldSize;
+            } else {
+                deleteTupleDataRange(offset, oldSize - newSize);
+                pageOffset += oldSize - newSize;
+                offset += oldSize - newSize;
+            }
+            writeNonNullValue(dbPage, offset, colType, value);
+            computeValueOffsets();
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("TODO:  Implement!");
+        }
+
+
     }
 
 

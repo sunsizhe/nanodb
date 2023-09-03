@@ -599,6 +599,23 @@ public class DataPage {
         }
 
         // TODO:  Complete this implementation.
-        throw new UnsupportedOperationException("TODO:  Implement!");
+        try {
+            int start = getSlotValue(dbPage, slot);
+            int len = getTupleLength(dbPage, slot);
+            deleteTupleDataRange(dbPage, start, len);
+            setSlotValue(dbPage, slot, EMPTY_SLOT);
+            //remove empty slots at end
+            for (int s = numSlots - 1; s > 0; s--){
+                int index = getSlotValue(dbPage, s);
+                if (index != EMPTY_SLOT) {
+                    break;
+                }
+                setNumSlots(dbPage, numSlots--);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Delete tuple failed: " + e.getMessage());
+        }
+
+
     }
 }

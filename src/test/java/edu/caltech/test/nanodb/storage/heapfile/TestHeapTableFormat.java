@@ -40,6 +40,7 @@ public class TestHeapTableFormat extends TableFormatTestCase {
      * @throws Exception if an IO error occurs, or if the test fails.
      */
     public void testHeapTableOnePageInsertDelete() throws Exception {
+        tryDoCommand("set property 'nanodb.pagecache.size' = 65536;", false);
         tryDoCommand("CREATE TABLE heap_1p_insdel (a INTEGER, b VARCHAR(20)) " +
             "PROPERTIES (storage = 'heap', pagesize = 4096);", false);
 

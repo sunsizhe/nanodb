@@ -42,6 +42,9 @@ public class DataPage {
      */
     public static final int EMPTY_SLOT = 0;
 
+    public static final int OCCUPY_FREE_NEXT = 4;
+    public static final int INVALID_PGNO = -1;
+
 
     /**
      * Initialize a newly allocated data page.  Currently this involves setting
@@ -221,7 +224,7 @@ public class DataPage {
      * @return the index where the tuple data ends in this data page
      */
     public static int getTupleDataEnd(DBPage dbPage) {
-        return dbPage.getPageSize();
+        return dbPage.getPageSize() - OCCUPY_FREE_NEXT;
     }
 
 
@@ -283,7 +286,9 @@ public class DataPage {
      * @return the amount of free space in the data page, in bytes
      */
     public static int getFreeSpaceInPage(DBPage dbPage) {
-        return getTupleDataStart(dbPage) - getSlotsEndIndex(dbPage);
+        int start = getTupleDataStart(dbPage);
+        int end = getSlotsEndIndex(dbPage);
+        return start - end;
     }
 
 
@@ -615,7 +620,22 @@ public class DataPage {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Delete tuple failed: " + e.getMessage());
         }
+    }
 
+    /**
+     * Sets the free page list next page to pageNo
+     *
+     * @param dbPage the data page
+     * @param pageNo the next page id
+     */
+    public static void setOccupyFreeNext(DBPage dbPage, int pageNo) {
+        if(pageNo > 65536) {
+            throw new IllegalArgumentException("no more page " + pageNo);
+        }
+        dbPage.writeInt(dbPage.getPageSize() - OCCUPY_FREE_NEXT, pageNo);
+    }
 
+    public static int getOccupyFreeNext(DBPage dbPage) {
+        return dbPage.readInt(dbPage.getPageSize() - OCCUPY_FREE_NEXT);
     }
 }

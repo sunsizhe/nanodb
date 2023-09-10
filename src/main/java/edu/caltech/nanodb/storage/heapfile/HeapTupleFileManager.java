@@ -25,7 +25,6 @@ public class HeapTupleFileManager implements TupleFileManager {
     /** A logging object for reporting anything interesting that happens. */
     private static Logger logger = LogManager.getLogger(HeapTupleFileManager.class);
 
-
     /** A reference to the storage manager. */
     private StorageManager storageManager;
 
@@ -83,7 +82,7 @@ public class HeapTupleFileManager implements TupleFileManager {
 
         // Read in the statistics.
         TableStats stats = StatsWriter.readTableStats(hpReader, schema);
-
+        headerPage.unpin();
         return new HeapTupleFile(storageManager, this, dbFile, schema, stats);
     }
 
@@ -128,6 +127,7 @@ public class HeapTupleFileManager implements TupleFileManager {
         StatsWriter.writeTableStats(schema, stats, hpWriter);
         int statsSize = hpWriter.getPosition() - schemaEndPos;
         HeaderPage.setStatsSize(headerPage, statsSize);
+        headerPage.unpin();
     }
 
 

@@ -202,6 +202,7 @@ public class DBPage implements Pinnable, AutoCloseable {
             throw new IllegalStateException(
                 "pinCount is not positive (observed value was " + p + ")");
         }
+        logger.debug("unpin the page");
 
         // To facilitate debugging of pinned-page leaks!
         bufferManager.recordPageUnpinned(this);

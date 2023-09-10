@@ -67,7 +67,13 @@ public class HeaderPage {
      * The offset in the header page where the table schema starts.  This
      * value is an unsigned short.
      */
-    public static final int OFFSET_SCHEMA_START = 6;
+    public static final int OFFSET_SCHEMA_START = 10;
+
+    /**
+     * The offset in the header page where the table schema starts
+     * The position of head of the free list
+     */
+    public static final int OFFSET_FREE_HEAD = 6;
 
 
     /**
@@ -168,5 +174,28 @@ public class HeaderPage {
     public static int getStatsOffset(DBPage dbPage) {
         verifyIsHeaderPage(dbPage);
         return OFFSET_SCHEMA_START + getSchemaSize(dbPage);
+    }
+
+    /**
+     * Sets the free page list header to PageNo -> next free page
+     * @param dbPage the header page
+     * @param pageNo the page id of the header page
+     */
+    public static void setFreeHead(DBPage dbPage, int pageNo) {
+        verifyIsHeaderPage(dbPage);
+        if (pageNo > 65536) {
+            throw new IllegalArgumentException("header page or no more pages" + pageNo);
+        }
+        dbPage.writeInt(OFFSET_FREE_HEAD, pageNo);
+    }
+
+    /**
+     * Gets the free page list header
+     * @param dbPage the header page
+     * @return the page id of the header page
+     */
+    public static int getFreeHead(DBPage dbPage) {
+        verifyIsHeaderPage(dbPage);
+        return dbPage.readInt(OFFSET_FREE_HEAD);
     }
 }

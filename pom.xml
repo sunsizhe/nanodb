@@ -27,6 +27,7 @@
             <version>4.7.1</version>
         </dependency>
 
+
         <!-- https://mvnrepository.com/artifact/commons-cli/commons-cli -->
         <dependency>
             <groupId>commons-cli</groupId>
@@ -78,7 +79,7 @@
                 <executions>
                     <execution>
                         <configuration>
-                            <executable>python</executable>
+                            <executable>python3</executable>
                             <workingDirectory>src/main/antlr4/imports</workingDirectory>
                             <commandlineArgs>make_ci.py Keywords.g4.in</commandlineArgs>
                         </configuration>
@@ -107,7 +108,7 @@
 
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>11</source>
                     <target>11</target>
@@ -243,7 +244,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>2.7</version>
+                <version>3.0</version>
             </plugin>
 
             <plugin>

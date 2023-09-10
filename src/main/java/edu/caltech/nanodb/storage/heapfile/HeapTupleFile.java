@@ -196,6 +196,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner one
                 " on page " + fptr.getPageNo() + " is empty.");
         }
 
+
+        dbPage.unpin();
         return new HeapFilePageTuple(schema, dbPage, slot, offset);
     }
 
@@ -259,6 +261,7 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
                     // Thus, we unpin the page after creating this tuple.
                     nextTup = new HeapFilePageTuple(schema, dbPage, nextSlot,
                                                     nextOffset);
+                    dbPage.unpin();
                     break page_scan;
                 }
 
@@ -268,7 +271,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             // If we got here then we reached the end of this page with no
             // tuples.  Go on to the next data-page, and start with the first
             // tuple in that page.
-
+            //unpin the dbpage before go to next page
+            dbPage.unpin();
             dbPage = storageManager.loadDBPage(dbFile, dbPage.getPageNo() + 1);
             if (dbPage == null)
                 break;  // Hit EOF with no more tuples.  Done scanning.
@@ -317,18 +321,12 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         // Search for a page to put the tuple in.  If we hit the end of the
         // data file, create a new page.
-        int pageNo = 1;
-        DBPage dbPage;
-        while (true) {
+        DBPage dbPage = null;
+        DBPage headerPage = storageManager.loadDBPage(dbFile, 0);
+        int pageNo = HeaderPage.getFreeHead(headerPage);
+        while (pageNo != 0) {
             // Try to load the page without creating a new one.
             dbPage = storageManager.loadDBPage(dbFile, pageNo);
-            if (dbPage == null) {
-                // Couldn't load the current page, because it doesn't exist.
-                // Break out of the loop.
-                logger.debug("Reached end of data file without finding " +
-                             "space for new tuple.");
-                break;
-            }
 
             int freeSpace = DataPage.getFreeSpaceInPage(dbPage);
             logger.trace(String.format("Page %d has %d bytes of free space.",
@@ -344,17 +342,28 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
             // If we reached this point then the page doesn't have enough
             // space, so go on to the next data page.
-            pageNo++;
+            pageNo = DataPage.getOccupyFreeNext(dbPage);
+            //evict the datapage from free list
+            DataPage.setOccupyFreeNext(dbPage, DataPage.INVALID_PGNO);
+            //set header of free list to next free page
+            HeaderPage.setFreeHead(headerPage, pageNo);
+
+            dbPage.unpin();
         }
 
-        if (dbPage == null) {
+        if (pageNo == 0) {
             // Try to create a new page at the end of the file.  In this
             // circumstance, pageNo is *just past* the last page in the data
             // file.
+            pageNo = dbFile.getNumPages();
             logger.debug("Creating new page " + pageNo + " to store new tuple.");
             dbPage = storageManager.loadDBPage(dbFile, pageNo,
                 /* create */ true);
             DataPage.initNewPage(dbPage);
+
+            //add to free list
+            HeaderPage.setFreeHead(headerPage, pageNo);
+            DataPage.setOccupyFreeNext(dbPage, 0);
         }
 
         int slot = DataPage.allocNewTuple(dbPage, tupSize);
@@ -367,6 +376,8 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
             HeapFilePageTuple.storeNewTuple(schema, dbPage, slot, tupOffset, tup);
 
         DataPage.sanityCheck(dbPage);
+        dbPage.unpin();
+        headerPage.unpin();
 
         return pageTup;
     }
@@ -418,6 +429,16 @@ page_scan:  // So we can break out of the outer loop from inside the inner loop.
 
         // Note that we don't invalidate the page-tuple when it is deleted,
         // so that the tuple can still be unpinned, etc.
+        if (DataPage.getOccupyFreeNext(dbPage) != DataPage.INVALID_PGNO) {
+            return;
+        }
+
+        var headerPage = storageManager.loadDBPage(dbFile, 0);
+        var prev = HeaderPage.getFreeHead(headerPage); //return page no
+        HeaderPage.setFreeHead(headerPage, dbPage.getPageNo());
+        DataPage.setOccupyFreeNext(dbPage, prev);
+        headerPage.unpin();
+
     }
 
 

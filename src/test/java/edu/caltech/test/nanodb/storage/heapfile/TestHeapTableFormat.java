@@ -62,6 +62,7 @@ public class TestHeapTableFormat extends TableFormatTestCase {
         // This should require around 10 pages.
         insertRows("heap_mp_ins", 1000, 200, 20, 50, /* ordered */ false,
                    /* delete */ false);
+        tryDoCommand("SHOW 'STORAGE' STATS");
     }
 
 
